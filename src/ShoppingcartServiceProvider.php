@@ -1,0 +1,3 @@
+<?php
+
+namespace Sparrowow\Shoppingcart;
