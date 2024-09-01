@@ -42,10 +42,5 @@
                 "Cart": "Sparrowow\\Shoppingcart\\Facades\\Cart"
             }
         }
-    },
-    "config": {
-        "allow-plugins": {
-            "kylekatarnls/update-helper": true
-        }
     }
 }
