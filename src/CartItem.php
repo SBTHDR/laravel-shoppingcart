@@ -6,6 +6,8 @@ use Illuminate\Contracts\Support\Arrayable;
 use Sparrowow\Shoppingcart\Contracts\Buyable;
 use Illuminate\Contracts\Support\Jsonable;
 
+use Illuminate\Support\Arr;
+
 class CartItem implements Arrayable, Jsonable
 {
     /**
@@ -63,6 +65,13 @@ class CartItem implements Arrayable, Jsonable
      * @var int|float
      */
     private $taxRate = 0;
+
+    /**
+     * Is item saved for later.
+     *
+     * @var boolean
+     */
+    private $isSaved = false;
 
     /**
      * CartItem constructor.
@@ -187,7 +196,7 @@ class CartItem implements Arrayable, Jsonable
     /**
      * Update the cart item from a Buyable.
      *
-     * @param \Gloudemans\Shoppingcart\Contracts\Buyable $item
+     * @param \Sparrowow\Shoppingcart\Contracts\Buyable $item
      * @return void
      */
     public function updateFromBuyable(Buyable $item)
@@ -206,12 +215,12 @@ class CartItem implements Arrayable, Jsonable
      */
     public function updateFromArray(array $attributes)
     {
-        $this->id       = array_get($attributes, 'id', $this->id);
-        $this->qty      = array_get($attributes, 'qty', $this->qty);
-        $this->name     = array_get($attributes, 'name', $this->name);
-        $this->price    = array_get($attributes, 'price', $this->price);
+        $this->id       = Arr::get($attributes, 'id', $this->id);
+        $this->qty      = Arr::get($attributes, 'qty', $this->qty);
+        $this->name     = Arr::get($attributes, 'name', $this->name);
+        $this->price    = Arr::get($attributes, 'price', $this->price);
         $this->priceTax = $this->price + $this->tax;
-        $this->options  = new CartItemOptions(array_get($attributes, 'options', $this->options));
+        $this->options  = new CartItemOptions(Arr::get($attributes, 'options', $this->options));
 
         $this->rowId = $this->generateRowId($this->id, $this->options->all());
     }
@@ -220,7 +229,7 @@ class CartItem implements Arrayable, Jsonable
      * Associate the cart item with the given model.
      *
      * @param mixed $model
-     * @return \Gloudemans\Shoppingcart\CartItem
+     * @return \Sparrowow\Shoppingcart\CartItem
      */
     public function associate($model)
     {
@@ -233,12 +242,25 @@ class CartItem implements Arrayable, Jsonable
      * Set the tax rate.
      *
      * @param int|float $taxRate
-     * @return \Gloudemans\Shoppingcart\CartItem
+     * @return \Sparrowow\Shoppingcart\CartItem
      */
     public function setTaxRate($taxRate)
     {
         $this->taxRate = $taxRate;
         
+        return $this;
+    }
+
+    /**
+     * Set saved state.
+     *
+     * @param bool $bool
+     * @return \Sparrowow\Shoppingcart\CartItem
+     */
+    public function setSaved($bool)
+    {
+        $this->isSaved = $bool;
+
         return $this;
     }
 
@@ -254,24 +276,24 @@ class CartItem implements Arrayable, Jsonable
             return $this->{$attribute};
         }
 
-        if($attribute === 'priceTax') {
-            return $this->price + $this->tax;
-        }
-        
-        if($attribute === 'subtotal') {
-            return $this->qty * $this->price;
-        }
-        
-        if($attribute === 'total') {
-            return $this->qty * ($this->priceTax);
+        if ($attribute === 'priceTax') {
+            return number_format(($this->price + $this->tax), 2, '.', '');
         }
 
-        if($attribute === 'tax') {
-            return $this->price * ($this->taxRate / 100);
+        if ($attribute === 'subtotal') {
+            return number_format(($this->qty * $this->price), 2, '.', '');
         }
-        
-        if($attribute === 'taxTotal') {
-            return $this->tax * $this->qty;
+
+        if ($attribute === 'total') {
+            return number_format(($this->qty * $this->priceTax), 2, '.', '');
+        }
+
+        if ($attribute === 'tax') {
+            return number_format(($this->price * ($this->taxRate / 100)), 2, '.', '');
+        }
+
+        if ($attribute === 'taxTotal') {
+            return number_format(($this->tax * $this->qty), 2, '.', '');
         }
 
         if($attribute === 'model' && isset($this->associatedModel)) {
@@ -284,9 +306,9 @@ class CartItem implements Arrayable, Jsonable
     /**
      * Create a new instance from a Buyable.
      *
-     * @param \Gloudemans\Shoppingcart\Contracts\Buyable $item
+     * @param \Sparrowow\Shoppingcart\Contracts\Buyable $item
      * @param array                                      $options
-     * @return \Gloudemans\Shoppingcart\CartItem
+     * @return \Sparrowow\Shoppingcart\CartItem
      */
     public static function fromBuyable(Buyable $item, array $options = [])
     {
@@ -297,11 +319,11 @@ class CartItem implements Arrayable, Jsonable
      * Create a new instance from the given array.
      *
      * @param array $attributes
-     * @return \Gloudemans\Shoppingcart\CartItem
+     * @return \Sparrowow\Shoppingcart\CartItem
      */
     public static function fromArray(array $attributes)
     {
-        $options = array_get($attributes, 'options', []);
+        $options = Arr::get($attributes, 'options', []);
 
         return new self($attributes['id'], $attributes['name'], $attributes['price'], $options);
     }
@@ -313,7 +335,7 @@ class CartItem implements Arrayable, Jsonable
      * @param string     $name
      * @param float      $price
      * @param array      $options
-     * @return \Gloudemans\Shoppingcart\CartItem
+     * @return \Sparrowow\Shoppingcart\CartItem
      */
     public static function fromAttributes($id, $name, $price, array $options = [])
     {
@@ -349,6 +371,7 @@ class CartItem implements Arrayable, Jsonable
             'price'    => $this->price,
             'options'  => $this->options->toArray(),
             'tax'      => $this->tax,
+            'isSaved'      => $this->isSaved,
             'subtotal' => $this->subtotal
         ];
     }
@@ -361,6 +384,11 @@ class CartItem implements Arrayable, Jsonable
      */
     public function toJson($options = 0)
     {
+        if (isset($this->associatedModel)){
+            
+           return json_encode(array_merge($this->toArray(), ['model' => $this->model]), $options);
+        }
+        
         return json_encode($this->toArray(), $options);
     }
 
@@ -373,7 +401,7 @@ class CartItem implements Arrayable, Jsonable
      * @param string $thousandSeperator
      * @return string
      */
-    private function numberFormat($value, $decimals, $decimalPoint, $thousandSeperator)
+    private function numberFormat($value, $decimals = null, $decimalPoint = null, $thousandSeperator = null)
     {
         if (is_null($decimals)){
             $decimals = is_null(config('cart.format.decimals')) ? 2 : config('cart.format.decimals');
